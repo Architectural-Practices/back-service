@@ -1,0 +1,103 @@
+---
+# ConfigMap: polaris 配置文件
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-provider-config
+  namespace: polaris-system
+  annotations:
+    polarismesh.cn/sync: "true"
+data:
+  polaris.yaml: |
+    global:
+      serverConnector:
+        addresses:
+          - polaris-server.polaris-system:8091
+---
+# Deployment: provider 服务
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polaris-provider
+  namespace: polaris-system
+  labels:
+    app: polaris-provider
+  annotations:
+    polarismesh.cn/sync: "true"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: polaris-provider
+  template:
+    metadata:
+      labels:
+        app: polaris-provider
+    spec:
+      containers:
+        - name: provider
+          image: polaris-go-bin:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/root/app/bin"]
+          args:
+            - "-namespace=polaris-system"
+            - "-service=DiscoverEchoServer"
+            - "-port=8080"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: polaris-config
+              mountPath: /root/app/polaris.yaml
+              subPath: polaris.yaml
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: polaris-config
+          configMap:
+            name: polaris-provider-config
+---
+# Service: 暴露 provider HTTP 端口
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-provider
+  namespace: polaris-system
+  labels:
+    app: polaris-provider
+  annotations:
+    polarismesh.cn/sync: "true"
+spec:
+  type: ClusterIP
+  selector:
+    app: polaris-provider
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: default
+  annotations:
+    polarismesh.cn/sync: "true"
