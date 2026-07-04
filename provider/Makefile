@@ -21,3 +21,7 @@ clean:
 .PHONY: build-docker
 build-docker: build
 	docker build -t polaris-go-bin:latest .
+
+.PHONY: run-test
+run-test:
+	go run . -conf ./conf/trpc_go.yaml
