@@ -1,0 +1,83 @@
+# Default values for polaris-provider
+
+namespace: default
+
+# Polaris configuration
+polaris:
+  config:
+    global:
+      serverConnector:
+        addresses:
+          - 192.168.1.4:8091
+
+# Deployment configuration
+deployment:
+  name: polaris-provider
+  replicas: 2
+  annotations:
+    polarismesh.cn/sync: "true"
+
+# Container configuration
+container:
+  name: provider
+  image: polaris-go-bin:latest
+  imagePullPolicy: IfNotPresent
+  command:
+    - /root/app/bin
+  args:
+    - -namespace=default
+    - -service=DiscoverEchoServer
+    - -port=8080
+  
+  # Port configuration
+  port:
+    name: http
+    containerPort: 8080
+    protocol: TCP
+  
+  # Volume mount configuration
+  volumeMounts:
+    - name: polaris-config
+      mountPath: /root/app/polaris.yaml
+      subPath: polaris.yaml
+  
+  # Resource limits and requests
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  # Health check probes
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 3
+    periodSeconds: 5
+
+# Service configuration
+service:
+  name: polaris-provider
+  type: ClusterIP
+  port: 8000
+  targetPort: 8080
+  annotations:
+    polarismesh.cn/sync: "true"
+
+# ConfigMap configuration
+configMap:
+  name: polaris-provider-config
+  annotations:
+    polarismesh.cn/sync: "true"

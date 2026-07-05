@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.deployment.name }}
+  annotations:
+    {{- toYaml .Values.deployment.annotations | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.deployment.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.deployment.name }}
+    spec:
+      containers:
+        - name: {{ .Values.container.name }}
+          image: {{ .Values.container.image }}
+          imagePullPolicy: {{ .Values.container.imagePullPolicy }}
+          command: {{ toJson .Values.container.command }}
+          args:
+            {{- range .Values.container.args }}
+            - {{ . }}
+            {{- end }}
+          ports:
+            - name: {{ .Values.container.port.name }}
+              containerPort: {{ .Values.container.port.containerPort }}
+              protocol: {{ .Values.container.port.protocol }}
+          volumeMounts:
+            {{- toYaml .Values.container.volumeMounts | nindent 12 }}
+          resources:
+            {{- toYaml .Values.container.resources | nindent 12 }}
+          {{- if .Values.container.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.container.livenessProbe.httpGet.path }}
+              port: {{ .Values.container.livenessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.container.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.container.livenessProbe.periodSeconds }}
+          {{- end }}
+          {{- if .Values.container.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.container.readinessProbe.httpGet.path }}
+              port: {{ .Values.container.readinessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.container.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.container.readinessProbe.periodSeconds }}
+          {{- end }}
+      volumes:
+        - name: polaris-config
+          configMap:
+            name: {{ .Values.configMap.name }}
