@@ -1,0 +1,98 @@
+---
+# Source: polaris-provider/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-provider-config
+  namespace: default
+  annotations:
+    polarismesh.cn/sync: "true"
+data:
+  polaris.yaml: |
+    global:
+      serverConnector:
+        addresses:
+          - 192.168.1.4:8091
+
+---
+# Source: polaris-provider/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-provider
+  namespace: default
+  labels:
+    app: polaris-provider
+  annotations:
+    polarismesh.cn/sync: "true"
+spec:
+  type: ClusterIP
+  selector:
+    app: polaris-provider
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8080
+      protocol: TCP
+
+---
+# Source: polaris-provider/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polaris-provider
+  namespace: default
+  labels:
+    app: polaris-provider
+  annotations:
+    polarismesh.cn/sync: "true"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: polaris-provider
+  template:
+    metadata:
+      labels:
+        app: polaris-provider
+    spec:
+      containers:
+        - name: provider
+          image: polaris-go-bin:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/root/app/bin"]
+          args:
+            - -namespace=default
+            - -service=DiscoverEchoServer
+            - -port=8080
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /root/app/polaris.yaml
+              name: polaris-config
+              subPath: polaris.yaml
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: polaris-config
+          configMap:
+            name: polaris-provider-config
